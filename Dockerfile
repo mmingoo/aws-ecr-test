@@ -1,4 +1,10 @@
-FROM openjdk:17
-ARG JAR_FILE=build/libs/*.jar
-COPY ${JAR_FILE} gaji.jar
-ENTRYPOINT ["java","-jar","/gaji.jar"]
+FROM gradle:7.2-jdk17 AS build
+WORKDIR /home/gradle/src
+COPY --chown=gradle:gradle . .
+RUN gradle build --no-daemon
+
+FROM openjdk:17-jdk-slim
+WORKDIR /app
+COPY --from=build /home/gradle/src/build/libs/*.jar app.jar
+EXPOSE 8080
+ENTRYPOINT ["java", "-jar", "app.jar"]
