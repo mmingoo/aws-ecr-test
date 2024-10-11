@@ -1,33 +1,43 @@
-name: Build and Push to ECR
-
+name: GAJI Service Prod CI/CD
 on:
   push:
-    branches: [ main ]  # main 브랜치에 푸시될 때 실행
-
+    branches: [ "main" ]
 jobs:
   build-and-push:
     runs-on: ubuntu-latest
-
     steps:
-      - name: 코드 체크아웃
-        uses: actions/checkout@v2
+      - uses: actions/checkout@v3
 
-      - name: AWS 자격 증명 구성
+      # 1. Java 17 세팅
+      - name: Set up JDK 17
+        uses: actions/setup-java@v3
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
+      # 2. Spring Boot 애플리케이션 빌드
+      - name: Build with Gradle
+        run: |
+          chmod +x ./gradlew
+          ./gradlew clean build -x test
+
+      # 3. AWS 자격 증명 구성
+      - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v1
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ secrets.AWS_REGION }}
 
-      - name: ECR 로그인
+      # 4. Amazon ECR 로그인
+      - name: Login to Amazon ECR
         id: login-ecr
         uses: aws-actions/amazon-ecr-login@v1
 
-      - name: 이미지 빌드 및 ECR 푸시
-        env:
-          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
-          ECR_REPOSITORY: 3355  # ECR 리포지토리 이름으로 변경하세요
-          IMAGE_TAG: ${{ github.sha }}  # 커밋 SHA를 태그로 사용!
-        run: |
-          docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG .
-          docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+      # 5. Docker 이미지 빌드 및 ECR 푸시
+      - name: Build and push Docker image to ECR
+        uses: docker/build-push-action@v4
+        with:
+          context: .
+          push: true
+          tags: ${{ steps.login-ecr.outputs.registry }}/${{ secrets.ECR_REPOSITORY }}:latest,${{ steps.login-ecr.outputs.registry }}/${{ secrets.ECR_REPOSITORY }}:${{ github.sha }}
