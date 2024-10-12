@@ -12,7 +12,7 @@ public class TestController {
     }
     @GetMapping("/hi")
     public String testController2(){
-        return "hiHello!!";
+        return "hiHello!!!!!!!";
     }
 
 }
